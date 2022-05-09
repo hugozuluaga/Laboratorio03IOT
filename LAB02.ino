@@ -3,21 +3,25 @@
 // arduino Rx (pin 2) ---- ESP8266 Tx
 // arduino Tx (pin 3) ---- ESP8266 Rx
 SoftwareSerial esp8266(3, 2);
-
+int sensor = 4;
+int ventilador = 9;
 int LED_SISTEMA = 10;
+float temp, humedad;
+float tempMax = 29.20;
 String Data = "";
 int encendido = 0;
-
+int puerta = 2;
+                DHT dht (sensor, DHT11);
 void setup()
 {
   Serial.begin(9600);
   esp8266.begin(9600);
-
-
+  dht.begin();
+  pinMode(ventilador, OUTPUT);
   pinMode(LED_SISTEMA, OUTPUT);
   pinMode(13, OUTPUT);
   digitalWrite(LED_SISTEMA, LOW);
-
+  digitalWrite(ventilador, LOW);
   digitalWrite(13, LOW); //Led Arduino
 
   sendData("AT+RST\r\n", 2000);     // rese t módulo
@@ -48,22 +52,29 @@ void loop()
           Serial.print("Received: ");
           Serial.println(Data);
           delay(50);
-          if (Data.indexOf("PRENDERLED") > 0) {
+          if (Data.indexOf("PRENDERSISTEMA") > 0) {
             //ENCENDER LED SISTEMA
-            Serial.print("LED ENCENDIDO");
+            Serial.print("SISTEMA ENCENDIDO");
             encendido = 1;
             digitalWrite(LED_SISTEMA, HIGH); // Cambiar estado del
             // digitalWrite(13, HIGH); // Encender led Arduino
           }
 
-          if (Data.indexOf("APAGARLED") > 0) {
-            Serial.print("LED APAGADO");
+          if (Data.indexOf("APAGARSISTEMA") > 0) {
+            Serial.print("SISTEMA APAGADO");
             digitalWrite(LED_SISTEMA, LOW); // Cambiar estado del
             //digitalWrite(13, LOW); // Cambiar estado del
             encendido = 0;
           }
 
-     
+          if (Data.indexOf("TEMPERATURA") > 0) {
+            //esp8266.find("GET")
+            String sub = Data.substring(22, 24);
+            Serial.println(sub);
+            Serial.println("----");
+            tempMax = sub.toInt();
+            Serial.print(tempMax) ;
+          }
           // Clear receive buffer so we're ready to receive the next line
           Data = "";
         }
@@ -77,9 +88,61 @@ void loop()
     }
   }
 
+  if (encendido == 1) {
+    //TEMP
+    humedad = dht.readHumidity();
+    temp = dht.readTemperature();
+    Serial.print("Temperatura: ");
+    Serial.print(temp);
+    Serial.print("ºC Humedad: ");
+    Serial.print(humedad);
+    Serial.println("%");
+    delay(1000);
 
+    // Comprobamos si ha habido algún error en la lectura
+    if (isnan(humedad) || isnan(temp) ) {
+      Serial.println("Error obteniendo los datos del sensor DHT11");
+      return;
+    }
 
-  
+    if (temp >= tempMax) {
+      digitalWrite(ventilador, HIGH); // Cambiar estado del
+      //digitalWrite (ventilador, HIGH);
+      Serial.print("Ventilador activo. Temperatura: ");
+      Serial.print(temp);
+      Serial.print(" ºC ");
+      delay(1000);
+    }
+    else {
+      digitalWrite (ventilador, LOW);
+    }
+      if (temp >= tempMax) {
+      digitalWrite(ventilador, HIGH); // Cambiar estado del
+    //Configuración del servidor de correo electrónico SMTP, host, puerto, cuenta y contraseña
+datosSMTP.setLogin("smtp.gmail.com", 465, "electivaiotunisangil@gmail.com", "ElectivaIOT20)");
+// Establecer el nombre del remitente y el correo electrónico
+datosSMTP.setSender("ESP32S", "hugoandreszzuluaga@gmail.com");
+// Establezca la prioridad o importancia del correo electrónico High, Normal, Low o 1 a 5 (1 es el más alto)
+datosSMTP.setPriority("High");
+// Establecer el asunto
+datosSMTP.setSubject("Probando envio de correo con ESP32");
+// Establece el mensaje de correo electrónico en formato de texto (sin formato)
+datosSMTP.setMessage("Hola soy el esp32s! y me estoy comunicando contigo", false);
+// Agregar destinatarios, se puede agregar más de un destinatario
+datosSMTP.addRecipient("direccion_de_destino@correo_cualquiera.com");
+ //Comience a enviar correo electrónico.
+if (!MailClient.sendMail(datosSMTP))
+Serial.println("Error enviando el correo, " + MailClient.smtpErrorReason());
+//Borrar todos los datos del objeto datosSMTP para liberar memoria
+datosSMTP.empty();
+delay(10000);
+
+}
+    }
+    else {
+      digitalWrite (ventilador, LOW);
+    }
+  }
 
 }
 
